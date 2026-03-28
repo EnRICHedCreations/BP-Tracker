@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>BP Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0f14;--surface:#13161e;--surface2:#1a1e28;--border:#252836;
+  --text:#e8eaf0;--muted:#6b7080;--accent:#c8f07a;--accent2:#7af0c8;
+  --red:#f07a7a;--yellow:#f0d07a;--green:#7af0a0;
+  --serif:'DM Serif Display',Georgia,serif;--mono:'DM Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:14px}
+button{cursor:pointer;font-family:var(--mono)}
+input,textarea{font-family:var(--mono)}
+
+/* SCREENS */
+.screen{display:none;min-height:100vh;flex-direction:column}
+.screen.active{display:flex}
+
+/* AUTH */
+#screen-auth{align-items:center;justify-content:center;padding:24px;
+  background:radial-gradient(ellipse 80% 60% at 50% 0%,#1a2a1a 0%,var(--bg) 70%)}
+.auth-card{width:100%;max-width:380px}
+.auth-title{font-family:var(--serif);font-size:42px;color:var(--accent);line-height:1;margin-bottom:4px}
+.auth-sub{color:var(--muted);font-size:13px;margin-bottom:32px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px}
+.field input,.field textarea{width:100%;background:var(--surface);border:1px solid var(--border);
+  color:var(--text);font-size:14px;padding:10px 14px;border-radius:6px;outline:none;transition:border-color .15s}
+.field input:focus,.field textarea:focus{border-color:var(--accent)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:10px 18px;border-radius:6px;font-size:13px;font-weight:500;border:none;transition:all .15s}
+.btn-primary{background:var(--accent);color:#0d0f14}
+.btn-primary:hover{background:#d8ff8a}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.btn-ghost:hover{color:var(--text);border-color:var(--muted)}
+.btn-danger{background:transparent;color:var(--red);border:1px solid rgba(240,122,122,.3)}
+.btn-danger:hover{background:rgba(240,122,122,.1)}
+.btn-full{width:100%;margin-top:16px}
+.err{color:var(--red);font-size:12px;margin-top:10px;padding:8px 12px;
+  background:rgba(240,122,122,.07);border-radius:4px;border-left:2px solid var(--red)}
+.info{color:var(--accent);font-size:12px;margin-top:10px;padding:8px 12px;
+  background:rgba(200,240,122,.07);border-radius:4px;border-left:2px solid var(--accent)}
+.auth-toggle{color:var(--muted);font-size:12px;margin-top:18px;text-align:center}
+.auth-toggle a{color:var(--accent);cursor:pointer;text-decoration:none}
+
+/* HEADER */
+.header{display:flex;align-items:center;justify-content:space-between;
+  padding:14px 20px;border-bottom:1px solid var(--border);background:var(--surface);flex-wrap:wrap;gap:10px}
+.header-brand{font-family:var(--serif);font-size:22px;color:var(--accent)}
+.header-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* MAIN */
+.main{flex:1;padding:20px;max-width:1000px;margin:0 auto;width:100%}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+@media(max-width:500px){.stats-row{grid-template-columns:1fr}}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px}
+.stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
+.stat-reading{font-family:var(--serif);font-size:44px;line-height:1}
+.stat-num{font-family:var(--serif);font-size:32px;color:var(--accent2)}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:4px}
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:500;letter-spacing:.05em;margin-top:6px}
+.badge-normal{background:rgba(122,240,160,.12);color:var(--green)}
+.badge-elevated{background:rgba(240,208,122,.12);color:var(--yellow)}
+.badge-high{background:rgba(240,122,122,.12);color:var(--red)}
+.badge-crisis{background:rgba(240,122,122,.25);color:var(--red);font-weight:700}
+.stat-time{font-size:10px;color:var(--muted);margin-top:6px}
+
+/* TABS */
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:20px}
+.tab{padding:8px 16px;font-size:13px;color:var(--muted);cursor:pointer;
+  border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;background:none;border-left:none;border-right:none;border-top:none}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* CHART */
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:20px}
+.chart-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.chart-title{font-family:var(--serif);font-size:18px}
+.range-btns{display:flex;gap:5px}
+.rbtn{padding:3px 9px;border-radius:4px;font-size:11px;cursor:pointer;
+  border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s}
+.rbtn.active{background:rgba(200,240,122,.12);color:var(--accent);border-color:rgba(200,240,122,.4)}
+
+/* TABLE */
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:20px}
+.table-top{display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
+.table-title{font-family:var(--serif);font-size:18px}
+.tbl-actions{display:flex;gap:6px}
+.readings-list{width:100%}
+.reading-row{display:grid;grid-template-columns:1fr auto;align-items:center;
+  padding:12px 18px;border-bottom:1px solid rgba(37,40,54,.7);gap:12px;transition:background .1s}
+.reading-row:last-child{border-bottom:none}
+.reading-row:hover{background:var(--surface2)}
+.rr-left{}
+.rr-val{font-family:var(--serif);font-size:20px}
+.rr-meta{font-size:11px;color:var(--muted);margin-top:3px}
+.rr-notes{font-size:11px;color:var(--muted);margin-top:2px;font-style:italic}
+.rr-right{display:flex;align-items:center;gap:8px}
+.del-btn{background:none;border:none;color:var(--muted);font-size:18px;
+  padding:4px 7px;border-radius:4px;transition:all .15s;line-height:1}
+.del-btn:hover{color:var(--red);background:rgba(240,122,122,.1)}
+
+/* MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);
+  z-index:200;align-items:center;justify-content:center;padding:20px}
+.modal-bg.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:24px;width:100%;max-width:400px;max-height:90vh;overflow-y:auto}
+.modal-title{font-family:var(--serif);font-size:26px;margin-bottom:18px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+
+/* SIRI MODAL */
+.siri-modal{max-width:500px}
+.key-box{background:var(--surface2);border:1px solid var(--border);border-radius:6px;
+  padding:10px 13px;font-size:12px;word-break:break-all;color:var(--accent2);margin:10px 0}
+.code-box{background:var(--surface2);border:1px solid var(--border);border-radius:6px;
+  padding:13px;font-size:11px;color:var(--accent);white-space:pre-wrap;margin:10px 0;
+  line-height:1.7;overflow-x:auto;max-height:300px;overflow-y:auto}
+.section-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:14px;margin-bottom:4px}
+
+/* EMPTY / LOADING */
+.empty{text-align:center;padding:50px 20px;color:var(--muted)}
+.empty-icon{font-size:36px;margin-bottom:10px}
+.loading{text-align:center;padding:40px;color:var(--muted);animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  padding:10px 20px;font-size:13px;z-index:999;transition:transform .3s ease;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="screen-auth" class="screen active">
+  <div class="auth-card">
+    <div class="auth-title">BP Tracker</div>
+    <div class="auth-sub">Daily blood pressure log</div>
+    <div class="field"><label>Email</label><input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email"/></div>
+    <div class="field"><label>Password</label><input type="password" id="auth-pw" placeholder="••••••••" autocomplete="current-password"/></div>
+    <div class="field" id="auth-pw2-wrap" style="display:none"><label>Confirm Password</label><input type="password" id="auth-pw2" placeholder="••••••••"/></div>
+    <div id="auth-msg"></div>
+    <button class="btn btn-primary btn-full" id="auth-submit">Sign In</button>
+    <div class="auth-toggle" id="auth-toggle">No account? <a id="auth-switch">Sign up</a></div>
+  </div>
+</div>
+
+<!-- DASHBOARD SCREEN -->
+<div id="screen-dash" class="screen">
+  <div class="header">
+    <div class="header-brand">BP Tracker</div>
+    <div class="header-right">
+      <button class="btn btn-ghost" id="btn-siri" style="font-size:12px">📱 Siri Setup</button>
+      <button class="btn btn-primary" id="btn-add">+ Log Reading</button>
+      <button class="btn btn-danger" id="btn-signout">Sign Out</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Latest Reading</div>
+        <div id="stat-latest"><div style="color:var(--muted)">No readings yet</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">30-Day Average</div>
+        <div id="stat-avg"><div class="stat-num" style="color:var(--muted)">—</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Logged</div>
+        <div class="stat-num" id="stat-count">0</div>
+        <div class="stat-sub">all-time readings</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="chart">Trends</button>
+      <button class="tab" data-tab="log">History</button>
+    </div>
+
+    <!-- CHART TAB -->
+    <div id="tab-chart">
+      <div class="chart-card">
+        <div class="chart-top">
+          <div class="chart-title">Blood Pressure Over Time</div>
+          <div class="range-btns">
+            <button class="rbtn" data-days="7">7d</button>
+            <button class="rbtn active" data-days="30">30d</button>
+            <button class="rbtn" data-days="90">90d</button>
+          </div>
+        </div>
+        <div id="chart-empty" class="empty" style="display:none"><div class="empty-icon">📊</div><div>No data in this range</div></div>
+        <canvas id="bp-chart" height="260"></canvas>
+      </div>
+    </div>
+
+    <!-- LOG TAB -->
+    <div id="tab-log" style="display:none">
+      <div class="table-card">
+        <div class="table-top">
+          <div class="table-title">Reading History</div>
+          <div class="tbl-actions">
+            <button class="btn btn-ghost" id="btn-csv" style="font-size:12px">↓ CSV</button>
+            <button class="btn btn-ghost" id="btn-pdf" style="font-size:12px">↓ PDF</button>
+          </div>
+        </div>
+        <div id="readings-list"><div class="loading">Loading…</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD MODAL -->
+<div class="modal-bg" id="modal-add">
+  <div class="modal">
+    <div class="modal-title">Log Reading</div>
+    <div class="row2">
+      <div class="field"><label>Systolic (top)</label><input type="number" id="inp-sys" placeholder="120" inputmode="numeric"/></div>
+      <div class="field"><label>Diastolic (bottom)</label><input type="number" id="inp-dia" placeholder="80" inputmode="numeric"/></div>
+    </div>
+    <div class="field"><label>Pulse (optional)</label><input type="number" id="inp-pulse" placeholder="72" inputmode="numeric"/></div>
+    <div class="field"><label>Notes (optional)</label><textarea id="inp-notes" rows="2" placeholder="After exercise, felt dizzy…"></textarea></div>
+    <div id="add-err"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-add-cancel">Cancel</button>
+      <button class="btn btn-primary" id="btn-add-save">Save Reading</button>
+    </div>
+  </div>
+</div>
+
+<!-- SIRI MODAL -->
+<div class="modal-bg" id="modal-siri">
+  <div class="modal siri-modal">
+    <div class="modal-title">Siri Shortcut Setup</div>
+    <div id="siri-content"><div class="loading">Generating key…</div></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-siri-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = "https://jnopteufsvsqmpwqvagg.supabase.co";
+const SUPABASE_KEY = "sb_publishable_zREjMNJmtTneKAA0GIso_w_6ihAzLID";
+
+// ── API ───────────────────────────────────────────────────────────────────────
+async function api(path, opts = {}) {
+  const token = opts.token || SUPABASE_KEY;
+  const res = await fetch(SUPABASE_URL + path, {
+    ...opts,
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": SUPABASE_KEY,
+      "Authorization": "Bearer " + token,
+      ...opts.headers
+    }
+  });
+  let data;
+  try { data = await res.json(); } catch { data = null; }
+  return { ok: res.ok, status: res.status, data };
+}
+
+// ── Session ───────────────────────────────────────────────────────────────────
+let SESSION = null;
+try { SESSION = JSON.parse(localStorage.getItem("bp_session")); } catch {}
+
+function saveSession(s) { SESSION = s; localStorage.setItem("bp_session", JSON.stringify(s)); }
+function clearSession() { SESSION = null; localStorage.removeItem("bp_session"); }
+
+// ── BP Status ─────────────────────────────────────────────────────────────────
+function bpStatus(s, d) {
+  if (s >= 180 || d >= 120) return { label: "Hypertensive Crisis", cls: "badge-crisis" };
+  if (s >= 140 || d >= 90)  return { label: "High — Stage 2", cls: "badge-high" };
+  if (s >= 130 || d >= 80)  return { label: "High — Stage 1", cls: "badge-high" };
+  if (s >= 120 && d < 80)   return { label: "Elevated", cls: "badge-elevated" };
+  return { label: "Normal", cls: "badge-normal" };
+}
+
+function fmtDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) + " " +
+         d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 2500);
+}
+
+// ── Screen switching ──────────────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById("screen-" + id).classList.add("active");
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+let authMode = "login";
+
+document.getElementById("auth-switch").addEventListener("click", () => {
+  authMode = authMode === "login" ? "signup" : "login";
+  const isSignup = authMode === "signup";
+  document.getElementById("auth-pw2-wrap").style.display = isSignup ? "" : "none";
+  document.getElementById("auth-submit").textContent = isSignup ? "Create Account" : "Sign In";
+  document.getElementById("auth-toggle").innerHTML = isSignup
+    ? 'Have an account? <a id="auth-switch">Sign in</a>'
+    : 'No account? <a id="auth-switch">Sign up</a>';
+  document.getElementById("auth-switch").addEventListener("click", arguments.callee);
+  document.getElementById("auth-msg").innerHTML = "";
+});
+
+document.getElementById("auth-submit").addEventListener("click", async () => {
+  const email = document.getElementById("auth-email").value.trim();
+  const pw    = document.getElementById("auth-pw").value;
+  const pw2   = document.getElementById("auth-pw2").value;
+  const msgEl = document.getElementById("auth-msg");
+  const btn   = document.getElementById("auth-submit");
+
+  if (!email || !pw) { msgEl.innerHTML = '<div class="err">Email and password required</div>'; return; }
+
+  btn.disabled = true; btn.textContent = "…";
+
+  if (authMode === "signup") {
+    if (pw !== pw2) { msgEl.innerHTML = '<div class="err">Passwords don\'t match</div>'; btn.disabled = false; btn.textContent = "Create Account"; return; }
+    const r = await api("/auth/v1/signup", { method: "POST", body: JSON.stringify({ email, password: pw }) });
+    if (!r.ok) { msgEl.innerHTML = `<div class="err">${r.data?.msg || r.data?.message || "Signup failed"}</div>`; btn.disabled = false; btn.textContent = "Create Account"; return; }
+    msgEl.innerHTML = '<div class="info">Check your email to confirm, then sign in.</div>';
+    authMode = "login";
+    document.getElementById("auth-pw2-wrap").style.display = "none";
+    btn.disabled = false; btn.textContent = "Sign In";
+    return;
+  }
+
+  const r = await api("/auth/v1/token?grant_type=password", { method: "POST", body: JSON.stringify({ email, password: pw }) });
+  if (!r.ok) { msgEl.innerHTML = `<div class="err">${r.data?.error_description || r.data?.msg || "Login failed"}</div>`; btn.disabled = false; btn.textContent = "Sign In"; return; }
+  saveSession({ access_token: r.data.access_token, user: r.data.user });
+  initDash();
+});
+
+document.getElementById("auth-email").addEventListener("keydown", e => e.key === "Enter" && document.getElementById("auth-pw").focus());
+document.getElementById("auth-pw").addEventListener("keydown", e => e.key === "Enter" && document.getElementById("auth-submit").click());
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+let allReadings = [];
+let chartRange  = 30;
+let bpChart     = null;
+let activeTab   = "chart";
+
+document.getElementById("btn-signout").addEventListener("click", async () => {
+  await api("/auth/v1/logout", { method: "POST", token: SESSION.access_token });
+  clearSession(); allReadings = [];
+  showScreen("auth");
+});
+
+document.querySelectorAll(".tab").forEach(t => {
+  t.addEventListener("click", () => {
+    activeTab = t.dataset.tab;
+    document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+    t.classList.add("active");
+    document.getElementById("tab-chart").style.display = activeTab === "chart" ? "" : "none";
+    document.getElementById("tab-log").style.display   = activeTab === "log"   ? "" : "none";
+    if (activeTab === "log") renderList();
+  });
+});
+
+document.querySelectorAll(".rbtn").forEach(b => {
+  b.addEventListener("click", () => {
+    chartRange = +b.dataset.days;
+    document.querySelectorAll(".rbtn").forEach(x => x.classList.remove("active"));
+    b.classList.add("active");
+    renderChart();
+  });
+});
+
+async function initDash() {
+  showScreen("dash");
+  const r = await api("/rest/v1/readings?select=*&order=recorded_at.desc&limit=300", { token: SESSION.access_token });
+  if (r.ok && Array.isArray(r.data)) allReadings = r.data;
+  renderStats();
+  renderChart();
+}
+
+function renderStats() {
+  const latest = allReadings[0];
+  const latestEl = document.getElementById("stat-latest");
+  if (latest) {
+    const st = bpStatus(latest.systolic, latest.diastolic);
+    latestEl.innerHTML = `
+      <div class="stat-reading">
+        <span style="color:var(--red)">${latest.systolic}</span><span style="color:var(--muted)">/</span><span style="color:var(--accent2)">${latest.diastolic}</span>
+      </div>
+      <span class="badge ${st.cls}">${st.label}</span>
+      <div class="stat-time">${fmtDate(latest.recorded_at)}</div>`;
+  } else {
+    latestEl.innerHTML = '<div style="color:var(--muted)">No readings yet</div>';
+  }
+
+  const recent = allReadings.slice(0, 30);
+  const avgEl = document.getElementById("stat-avg");
+  if (recent.length) {
+    const aS = Math.round(recent.reduce((a,r) => a + r.systolic, 0) / recent.length);
+    const aD = Math.round(recent.reduce((a,r) => a + r.diastolic, 0) / recent.length);
+    avgEl.innerHTML = `<div class="stat-num">${aS}/${aD}</div><div class="stat-sub">over ${recent.length} readings</div>`;
+  } else {
+    avgEl.innerHTML = '<div class="stat-num" style="color:var(--muted)">—</div>';
+  }
+
+  document.getElementById("stat-count").textContent = allReadings.length;
+}
+
+function renderChart() {
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - chartRange);
+  const data = allReadings.filter(r => new Date(r.recorded_at) >= cutoff).reverse();
+
+  const canvas = document.getElementById("bp-chart");
+  const emptyEl = document.getElementById("chart-empty");
+
+  if (!data.length) {
+    canvas.style.display = "none"; emptyEl.style.display = "";
+    return;
+  }
+  canvas.style.display = ""; emptyEl.style.display = "none";
+
+  const labels = data.map(r => new Date(r.recorded_at).toLocaleDateString("en-US",{month:"short",day:"numeric"}));
+  const sys    = data.map(r => r.systolic);
+  const dia    = data.map(r => r.diastolic);
+  const pulse  = data.map(r => r.pulse || null);
+
+  if (bpChart) bpChart.destroy();
+  bpChart = new Chart(canvas, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        { label: "Systolic",  data: sys,   borderColor: "#f07a7a", backgroundColor: "rgba(240,122,122,.08)", borderWidth: 2, pointRadius: 3, tension: .3 },
+        { label: "Diastolic", data: dia,   borderColor: "#7af0c8", backgroundColor: "rgba(122,240,200,.08)", borderWidth: 2, pointRadius: 3, tension: .3 },
+        { label: "Pulse",     data: pulse, borderColor: "#c8f07a", backgroundColor: "transparent",           borderWidth: 1.5, pointRadius: 2, tension: .3, borderDash: [4,3] }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { labels: { color: "#6b7080", font: { family: "DM Mono", size: 11 }, boxWidth: 12 } },
+        tooltip: { backgroundColor: "#13161e", borderColor: "#252836", borderWidth: 1, titleColor: "#e8eaf0", bodyColor: "#e8eaf0", titleFont: { family: "DM Mono" }, bodyFont: { family: "DM Mono" } }
+      },
+      scales: {
+        x: { ticks: { color: "#6b7080", font: { family: "DM Mono", size: 10 } }, grid: { color: "#252836" } },
+        y: { ticks: { color: "#6b7080", font: { family: "DM Mono", size: 10 } }, grid: { color: "#252836" } }
+      }
+    }
+  });
+}
+
+function renderList() {
+  const el = document.getElementById("readings-list");
+  if (!allReadings.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">🩺</div><div>No readings logged yet</div></div>'; return; }
+  el.innerHTML = allReadings.map(r => {
+    const st = bpStatus(r.systolic, r.diastolic);
+    const notesHtml = r.notes ? `<div class="rr-notes">${r.notes}</div>` : "";
+    const pulseHtml = r.pulse ? ` · ${r.pulse} bpm` : "";
+    return `<div class="reading-row">
+      <div class="rr-left">
+        <div class="rr-val"><span style="color:var(--red)">${r.systolic}</span><span style="color:var(--muted)">/</span><span style="color:var(--accent2)">${r.diastolic}</span></div>
+        <div class="rr-meta"><span class="badge ${st.cls}">${st.label}</span>${pulseHtml} · ${fmtDate(r.recorded_at)}</div>
+        ${notesHtml}
+      </div>
+      <div class="rr-right">
+        <button class="del-btn" data-id="${r.id}" title="Delete">×</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  el.querySelectorAll(".del-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.id;
+      await api(`/rest/v1/readings?id=eq.${id}`, { method: "DELETE", token: SESSION.access_token });
+      allReadings = allReadings.filter(r => r.id !== id);
+      renderStats(); renderList();
+      if (activeTab === "chart") renderChart();
+      toast("Reading deleted");
+    });
+  });
+}
+
+// ── Add Modal ─────────────────────────────────────────────────────────────────
+document.getElementById("btn-add").addEventListener("click", () => {
+  ["inp-sys","inp-dia","inp-pulse","inp-notes"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("add-err").innerHTML = "";
+  document.getElementById("modal-add").classList.add("open");
+  document.getElementById("inp-sys").focus();
+});
+document.getElementById("btn-add-cancel").addEventListener("click", () => document.getElementById("modal-add").classList.remove("open"));
+document.getElementById("modal-add").addEventListener("click", e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove("open"); });
+
+document.getElementById("btn-add-save").addEventListener("click", async () => {
+  const sys   = document.getElementById("inp-sys").value;
+  const dia   = document.getElementById("inp-dia").value;
+  const pulse = document.getElementById("inp-pulse").value;
+  const notes = document.getElementById("inp-notes").value.trim();
+  const errEl = document.getElementById("add-err");
+  const btn   = document.getElementById("btn-add-save");
+
+  if (!sys || !dia) { errEl.innerHTML = '<div class="err">Systolic and diastolic are required</div>'; return; }
+
+  btn.disabled = true; btn.textContent = "Saving…";
+  const r = await api("/rest/v1/readings", {
+    method: "POST", token: SESSION.access_token,
+    headers: { Prefer: "return=representation" },
+    body: JSON.stringify({ user_id: SESSION.user.id, systolic: +sys, diastolic: +dia, pulse: pulse ? +pulse : null, notes: notes || null })
+  });
+  btn.disabled = false; btn.textContent = "Save Reading";
+
+  if (!r.ok) { errEl.innerHTML = '<div class="err">Failed to save. Try again.</div>'; return; }
+  allReadings.unshift(r.data[0]);
+  document.getElementById("modal-add").classList.remove("open");
+  renderStats(); renderChart();
+  if (activeTab === "log") renderList();
+  toast("Reading saved ✓");
+});
+
+// ── Siri Modal ─────────────────────────────────────────────────────────────────
+document.getElementById("btn-siri").addEventListener("click", async () => {
+  document.getElementById("modal-siri").classList.add("open");
+  document.getElementById("siri-content").innerHTML = '<div class="loading">Generating key…</div>';
+
+  let key = "";
+  const r = await api("/rest/v1/api_keys?select=key&limit=1", { token: SESSION.access_token });
+  if (r.ok && r.data?.length) {
+    key = r.data[0].key;
+  } else {
+    const r2 = await api("/rest/v1/api_keys", {
+      method: "POST", token: SESSION.access_token,
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ user_id: SESSION.user.id })
+    });
+    if (r2.ok) key = r2.data[0].key;
+  }
+
+  const url = SUPABASE_URL + "/rest/v1/readings";
+  const userId = SESSION.user.id;
+
+  document.getElementById("siri-content").innerHTML = `
+    <div class="section-label">Your API Key</div>
+    <div class="key-box">${key}</div>
+    <div class="section-label">Shortcut Instructions</div>
+    <div class="code-box">In the Shortcuts app, tap + to create a new shortcut.
+Name it: "Log Blood Pressure"
+
+Add these actions in order:
+
+1. Ask for Input
+   Question: "Systolic — top number?"
+   → Save to Variable: systolic
+
+2. Ask for Input
+   Question: "Diastolic — bottom number?"
+   → Save to Variable: diastolic
+
+3. Ask for Input
+   Question: "Any notes?" (Allow Cancel = ON)
+   → Save to Variable: notes
+
+4. Get Contents of URL
+   URL: ${url}
+   Method: POST
+   Headers (add each one):
+     apikey  →  ${key}
+     Authorization  →  Bearer ${key}
+     Content-Type  →  application/json
+     Prefer  →  return=minimal
+   Request Body: JSON
+     user_id  →  "${userId}"
+     systolic  →  [systolic variable]
+     diastolic  →  [diastolic variable]
+     notes  →  [notes variable]
+
+5. Speak Text
+   Text: "Logged! [systolic] over [diastolic]"</div>
+    <div style="font-size:11px;color:var(--muted);line-height:1.6;margin-top:8px">
+      Say <strong style="color:var(--accent)">"Hey Siri, Log Blood Pressure"</strong> to trigger it.<br>
+      Siri will ask for each number, then confirm out loud.
+    </div>`;
+});
+
+document.getElementById("btn-siri-close").addEventListener("click", () => document.getElementById("modal-siri").classList.remove("open"));
+document.getElementById("modal-siri").addEventListener("click", e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove("open"); });
+
+// ── Export ─────────────────────────────────────────────────────────────────────
+document.getElementById("btn-csv").addEventListener("click", () => {
+  const rows = [["Date","Systolic","Diastolic","Pulse","Notes","Status"]];
+  allReadings.forEach(r => {
+    const s = bpStatus(r.systolic, r.diastolic);
+    rows.push([fmtDate(r.recorded_at), r.systolic, r.diastolic, r.pulse||"", r.notes||"", s.label]);
+  });
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download = "bp-readings.csv"; a.click();
+  toast("CSV downloaded");
+});
+
+document.getElementById("btn-pdf").addEventListener("click", () => {
+  const win = window.open("","_blank");
+  const rows = allReadings.map(r => {
+    const s = bpStatus(r.systolic, r.diastolic);
+    return `<tr><td>${fmtDate(r.recorded_at)}</td><td><strong>${r.systolic}/${r.diastolic}</strong></td><td>${r.pulse||"—"}</td><td>${s.label}</td><td>${r.notes||"—"}</td></tr>`;
+  }).join("");
+  win.document.write(`<!DOCTYPE html><html><head><title>BP Report</title>
+  <style>body{font-family:Georgia,serif;padding:40px;color:#111}h1{font-size:28px;margin-bottom:4px}p{color:#666;margin-bottom:24px}table{width:100%;border-collapse:collapse}th{text-align:left;border-bottom:2px solid #333;padding:8px 12px;font-size:12px;text-transform:uppercase}td{padding:8px 12px;border-bottom:1px solid #ddd;font-size:13px}</style>
+  </head><body><h1>Blood Pressure Report</h1><p>Generated ${new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}</p>
+  <table><thead><tr><th>Date</th><th>Reading</th><th>Pulse</th><th>Status</th><th>Notes</th></tr></thead><tbody>${rows}</tbody></table>
+  <script>window.print();<\/script></body></html>`);
+  win.document.close();
+});
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+if (SESSION) { initDash(); } else { showScreen("auth"); }
+</script>
+</body>
+</html>
