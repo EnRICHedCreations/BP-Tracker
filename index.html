@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BP Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.8.0/Recharts.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d0f14;
+    --surface: #13161e;
+    --surface2: #1a1e28;
+    --border: #252836;
+    --text: #e8eaf0;
+    --muted: #6b7080;
+    --accent: #c8f07a;
+    --accent2: #7af0c8;
+    --red: #f07a7a;
+    --yellow: #f0d07a;
+    --green: #7af0a0;
+    --font-serif: 'DM Serif Display', Georgia, serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+  html, body, #root { height: 100%; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-mono); font-size: 14px; }
+  .app { min-height: 100vh; display: flex; flex-direction: column; }
+  .auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; background: radial-gradient(ellipse 80% 60% at 50% 0%, #1a2a1a 0%, var(--bg) 70%); }
+  .auth-card { width: 100%; max-width: 400px; }
+  .auth-title { font-family: var(--font-serif); font-size: 42px; color: var(--accent); margin-bottom: 4px; line-height: 1; }
+  .auth-sub { color: var(--muted); font-size: 13px; margin-bottom: 36px; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
+  .field input, .field textarea { width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 14px; padding: 10px 14px; border-radius: 6px; outline: none; transition: border-color .15s; }
+  .field input:focus, .field textarea:focus { border-color: var(--accent); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 20px; border-radius: 6px; font-family: var(--font-mono); font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all .15s; }
+  .btn-primary { background: var(--accent); color: #0d0f14; }
+  .btn-primary:hover { background: #d8ff8a; }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+  .btn-danger { background: transparent; color: var(--red); border: 1px solid var(--red)44; }
+  .btn-danger:hover { background: var(--red)22; }
+  .err { color: var(--red); font-size: 12px; margin-top: 12px; padding: 8px 12px; background: var(--red)11; border-radius: 4px; border-left: 2px solid var(--red); }
+  .auth-toggle { color: var(--muted); font-size: 12px; margin-top: 20px; text-align: center; }
+  .auth-toggle span { color: var(--accent); cursor: pointer; }
+  .auth-toggle span:hover { text-decoration: underline; }
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 16px 28px; border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; gap: 12px; }
+  .header-brand { font-family: var(--font-serif); font-size: 24px; color: var(--accent); }
+  .header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .main { flex: 1; padding: 28px; max-width: 1100px; margin: 0 auto; width: 100%; }
+  .hero-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  @media (max-width: 600px) { .hero-row { grid-template-columns: 1fr; } .header { padding: 12px 16px; } .main { padding: 16px; } }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .card-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 10px; }
+  .reading-big { font-family: var(--font-serif); font-size: 52px; line-height: 1; }
+  .reading-big .slash { color: var(--muted); }
+  .status-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; letter-spacing: .05em; margin-top: 8px; }
+  .status-normal { background: var(--green)22; color: var(--green); }
+  .status-elevated { background: var(--yellow)22; color: var(--yellow); }
+  .status-high { background: var(--red)22; color: var(--red); }
+  .status-crisis { background: var(--red)44; color: var(--red); font-weight: bold; }
+  .stat-num { font-family: var(--font-serif); font-size: 36px; color: var(--accent2); }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 24px; }
+  .chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+  .chart-title { font-family: var(--font-serif); font-size: 20px; }
+  .range-btns { display: flex; gap: 6px; }
+  .range-btn { padding: 4px 10px; border-radius: 4px; font-family: var(--font-mono); font-size: 11px; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--muted); transition: all .15s; }
+  .range-btn.active { background: var(--accent)22; color: var(--accent); border-color: var(--accent)55; }
+  .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 24px; overflow: hidden; }
+  .table-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px; }
+  .table-title { font-family: var(--font-serif); font-size: 20px; }
+  .table-actions { display: flex; gap: 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; padding: 10px 20px; border-bottom: 1px solid var(--border); font-weight: 500; }
+  td { padding: 12px 20px; border-bottom: 1px solid var(--border)88; font-size: 13px; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+  .td-reading { font-family: var(--font-serif); font-size: 18px; }
+  .td-notes { color: var(--muted); font-size: 12px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .del-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 4px; transition: all .15s; }
+  .del-btn:hover { color: var(--red); background: var(--red)11; }
+  .modal-overlay { position: fixed; inset: 0; background: #0008; display: flex; align-items: center; justify-content: center; z-index: 100; padding: 24px; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px; width: 100%; max-width: 420px; }
+  .modal-title { font-family: var(--font-serif); font-size: 28px; margin-bottom: 20px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+  .apikey-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; font-size: 12px; word-break: break-all; color: var(--accent2); margin: 12px 0; }
+  .siri-code { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 14px; font-size: 12px; color: var(--accent); white-space: pre-wrap; margin: 12px 0; line-height: 1.6; overflow-x: auto; }
+  .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--border); }
+  .tab { padding: 8px 16px; font-family: var(--font-mono); font-size: 13px; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .15s; }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .loading { display: flex; align-items: center; justify-content: center; height: 200px; color: var(--muted); }
+  .pulse { animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useMemo } = React;
+const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = Recharts;
+
+const SUPABASE_URL = "https://jnopteufsvsqmpwqvagg.supabase.co";
+const SUPABASE_KEY = "sb_publishable_zREjMNJmtTneKAA0GIso_w_6ihAzLID";
+
+const sb = async (path, opts = {}) => {
+  const headers = { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": `Bearer ${opts.token || SUPABASE_KEY}`, ...opts.headers };
+  const res = await fetch(`${SUPABASE_URL}${path}`, { ...opts, headers });
+  const text = await res.text();
+  let data; try { data = JSON.parse(text); } catch { data = text; }
+  return { ok: res.ok, status: res.status, data };
+};
+
+const signUp = (email, password) => sb("/auth/v1/signup", { method: "POST", body: JSON.stringify({ email, password }) });
+const signIn = (email, password) => sb("/auth/v1/token?grant_type=password", { method: "POST", body: JSON.stringify({ email, password }) });
+const signOut = (token) => sb("/auth/v1/logout", { method: "POST", token });
+const getReadings = (token) => sb(`/rest/v1/readings?select=*&order=recorded_at.desc&limit=200`, { token });
+const insertReading = (token, row) => sb("/rest/v1/readings", { method: "POST", token, headers: { Prefer: "return=representation" }, body: JSON.stringify(row) });
+const deleteReading = (token, id) => sb(`/rest/v1/readings?id=eq.${id}`, { method: "DELETE", token });
+const getApiKey = (token) => sb(`/rest/v1/api_keys?select=key&limit=1`, { token });
+const createApiKey = (token, user_id) => sb("/rest/v1/api_keys", { method: "POST", token, headers: { Prefer: "return=representation" }, body: JSON.stringify({ user_id }) });
+
+function bpStatus(s, d) {
+  if (s >= 180 || d >= 120) return { label: "Hypertensive Crisis", cls: "status-crisis" };
+  if (s >= 140 || d >= 90)  return { label: "High — Stage 2", cls: "status-high" };
+  if (s >= 130 || d >= 80)  return { label: "High — Stage 1", cls: "status-high" };
+  if (s >= 120 && d < 80)   return { label: "Elevated", cls: "status-elevated" };
+  return { label: "Normal", cls: "status-normal" };
+}
+
+function fmtDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) + " " +
+         d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
+function exportCSV(readings) {
+  const rows = [["Date","Systolic","Diastolic","Pulse","Notes","Status"]];
+  readings.forEach(r => {
+    const s = bpStatus(r.systolic, r.diastolic);
+    rows.push([fmtDate(r.recorded_at), r.systolic, r.diastolic, r.pulse||"", r.notes||"", s.label]);
+  });
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  a.download = "bp-readings.csv"; a.click();
+}
+
+function exportPDF(readings) {
+  const win = window.open("","_blank");
+  const rows = readings.map(r => {
+    const s = bpStatus(r.systolic, r.diastolic);
+    return `<tr><td>${fmtDate(r.recorded_at)}</td><td><strong>${r.systolic}/${r.diastolic}</strong></td><td>${r.pulse||"—"}</td><td>${s.label}</td><td>${r.notes||"—"}</td></tr>`;
+  }).join("");
+  win.document.write(`<!DOCTYPE html><html><head><title>BP Report</title>
+  <style>body{font-family:Georgia,serif;padding:40px;color:#111}h1{font-size:28px;margin-bottom:4px}p{color:#666;margin-bottom:24px}table{width:100%;border-collapse:collapse}th{text-align:left;border-bottom:2px solid #333;padding:8px 12px;font-size:12px;text-transform:uppercase}td{padding:8px 12px;border-bottom:1px solid #ddd;font-size:13px}@media print{body{padding:20px}}</style>
+  </head><body><h1>Blood Pressure Report</h1><p>Generated ${new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}</p>
+  <table><thead><tr><th>Date</th><th>Reading</th><th>Pulse</th><th>Status</th><th>Notes</th></tr></thead><tbody>${rows}</tbody></table>
+  <script>window.print();<\/script></body></html>`);
+  win.document.close();
+}
+
+function Auth({ onAuth }) {
+  const [mode, setMode] = useState("login");
+  const [email, setEmail] = useState(""); const [pw, setPw] = useState(""); const [pw2, setPw2] = useState("");
+  const [loading, setLoading] = useState(false); const [err, setErr] = useState("");
+  async function submit() {
+    setErr(""); setLoading(true);
+    if (mode === "signup") {
+      if (pw !== pw2) { setErr("Passwords don't match"); setLoading(false); return; }
+      const r = await signUp(email, pw);
+      if (!r.ok) { setErr(r.data?.msg || r.data?.message || "Signup failed"); setLoading(false); return; }
+      setErr("Check your email to confirm your account, then log in.");
+      setMode("login"); setLoading(false); return;
+    }
+    const r = await signIn(email, pw);
+    if (!r.ok) { setErr(r.data?.error_description || r.data?.msg || "Login failed"); setLoading(false); return; }
+    onAuth(r.data); setLoading(false);
+  }
+  return (
+    <div className="auth-wrap">
+      <div className="auth-card">
+        <div className="auth-title">BP Tracker</div>
+        <div className="auth-sub">Daily blood pressure log</div>
+        <div className="field"><label>Email</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"/></div>
+        <div className="field"><label>Password</label><input type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()}/></div>
+        {mode==="signup"&&<div className="field"><label>Confirm Password</label><input type="password" value={pw2} onChange={e=>setPw2(e.target.value)}/></div>}
+        {err&&<div className="err">{err}</div>}
+        <div style={{marginTop:20}}><button className="btn btn-primary" style={{width:"100%"}} onClick={submit} disabled={loading}>{loading?"…":mode==="login"?"Sign In":"Create Account"}</button></div>
+        <div className="auth-toggle">{mode==="login"?"No account? ":"Have an account? "}<span onClick={()=>{setMode(m=>m==="login"?"signup":"login");setErr("")}}>{mode==="login"?"Sign up":"Sign in"}</span></div>
+      </div>
+    </div>
+  );
+}
+
+function AddModal({ session, onSave, onClose }) {
+  const [sys,setSys]=useState(""); const [dia,setDia]=useState(""); const [pulse,setPulse]=useState(""); const [notes,setNotes]=useState(""); const [loading,setLoading]=useState(false); const [err,setErr]=useState("");
+  async function save() {
+    if (!sys||!dia){setErr("Systolic and diastolic are required");return;}
+    setLoading(true);
+    const r = await insertReading(session.access_token,{user_id:session.user.id,systolic:+sys,diastolic:+dia,pulse:pulse?+pulse:null,notes:notes||null});
+    if(!r.ok){setErr("Failed to save");setLoading(false);return;}
+    onSave(r.data[0]); setLoading(false);
+  }
+  return (
+    <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal">
+        <div className="modal-title">Log Reading</div>
+        <div className="row2">
+          <div className="field"><label>Systolic (top)</label><input type="number" value={sys} onChange={e=>setSys(e.target.value)} placeholder="120"/></div>
+          <div className="field"><label>Diastolic (bottom)</label><input type="number" value={dia} onChange={e=>setDia(e.target.value)} placeholder="80"/></div>
+        </div>
+        <div className="field"><label>Pulse (optional)</label><input type="number" value={pulse} onChange={e=>setPulse(e.target.value)} placeholder="72"/></div>
+        <div className="field"><label>Notes (optional)</label><textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={2} placeholder="After exercise, felt dizzy, etc."/></div>
+        {err&&<div className="err">{err}</div>}
+        <div className="modal-footer"><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-primary" onClick={save} disabled={loading}>{loading?"Saving…":"Save Reading"}</button></div>
+      </div>
+    </div>
+  );
+}
+
+function ApiKeyModal({ session, onClose }) {
+  const [key,setKey]=useState(""); const [loading,setLoading]=useState(true);
+  useEffect(()=>{
+    getApiKey(session.access_token).then(r=>{
+      if(r.ok&&r.data?.length){setKey(r.data[0].key);setLoading(false);}
+      else{createApiKey(session.access_token,session.user.id).then(r2=>{if(r2.ok)setKey(r2.data[0].key);setLoading(false);});}
+    });
+  },[]);
+  const url = `${SUPABASE_URL}/rest/v1/readings`;
+  const siriInstructions = `In the Shortcuts app, create a new shortcut named "Log Blood Pressure" then add these actions:
+
+1. Ask for Input → "Systolic (top number)?"
+   Store result in Variable: systolic
+
+2. Ask for Input → "Diastolic (bottom number)?"
+   Store result in Variable: diastolic
+
+3. Ask for Input → "Any notes?" (Allow Cancel)
+   Store result in Variable: notes
+
+4. Get Contents of URL
+   URL: ${url}
+   Method: POST
+   Headers:
+     apikey: ${key}
+     Authorization: Bearer ${key}
+     Content-Type: application/json
+     Prefer: return=minimal
+   Body (JSON):
+     {
+       "user_id": "${session.user?.id}",
+       "systolic": [systolic variable],
+       "diastolic": [diastolic variable],
+       "notes": [notes variable]
+     }
+
+5. Speak Text → "Logged! [systolic] over [diastolic]"
+
+Trigger phrase: "Hey Siri, Log Blood Pressure"`;
+  return (
+    <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal" style={{maxWidth:520}}>
+        <div className="modal-title">Siri Shortcut Setup</div>
+        {loading?<div className="loading pulse">Generating key…</div>:<>
+          <div style={{color:"var(--muted)",fontSize:12,marginBottom:8}}>Your API key:</div>
+          <div className="apikey-box">{key}</div>
+          <div style={{color:"var(--muted)",fontSize:12,marginBottom:4}}>Shortcut instructions:</div>
+          <div className="siri-code">{siriInstructions}</div>
+          <div style={{color:"var(--muted)",fontSize:11,marginTop:8,lineHeight:1.5}}>Say <strong style={{color:"var(--accent)"}}>Hey Siri, Log Blood Pressure</strong> to trigger it.</div>
+        </>}
+        <div className="modal-footer"><button className="btn btn-ghost" onClick={onClose}>Close</button></div>
+      </div>
+    </div>
+  );
+}
+
+function Dashboard({ session, onSignOut }) {
+  const [readings,setReadings]=useState([]); const [loading,setLoading]=useState(true);
+  const [showAdd,setShowAdd]=useState(false); const [showSiri,setShowSiri]=useState(false);
+  const [range,setRange]=useState(30); const [tab,setTab]=useState("chart");
+
+  const load = useCallback(async()=>{
+    setLoading(true);
+    const r = await getReadings(session.access_token);
+    if(r.ok) setReadings(Array.isArray(r.data)?r.data:[]);
+    setLoading(false);
+  },[session]);
+
+  useEffect(()=>{load();},[load]);
+
+  const latest = readings[0];
+  const latestStatus = latest ? bpStatus(latest.systolic, latest.diastolic) : null;
+  const avgSys = readings.length ? Math.round(readings.slice(0,30).reduce((a,r)=>a+r.systolic,0)/Math.min(readings.length,30)) : null;
+  const avgDia = readings.length ? Math.round(readings.slice(0,30).reduce((a,r)=>a+r.diastolic,0)/Math.min(readings.length,30)) : null;
+
+  const chartData = useMemo(()=>{
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-range);
+    return readings.filter(r=>new Date(r.recorded_at)>=cutoff).reverse().map(r=>({
+      date: new Date(r.recorded_at).toLocaleDateString("en-US",{month:"short",day:"numeric"}),
+      Systolic: r.systolic, Diastolic: r.diastolic, Pulse: r.pulse
+    }));
+  },[readings,range]);
+
+  async function del(id){ await deleteReading(session.access_token,id); setReadings(rs=>rs.filter(r=>r.id!==id)); }
+
+  return (
+    <div className="app">
+      <div className="header">
+        <div className="header-brand">BP Tracker</div>
+        <div className="header-right">
+          <button className="btn btn-ghost" style={{fontSize:12}} onClick={()=>setShowSiri(true)}>📱 Siri Setup</button>
+          <button className="btn btn-primary" onClick={()=>setShowAdd(true)}>+ Log Reading</button>
+          <button className="btn btn-danger" onClick={onSignOut}>Sign Out</button>
+        </div>
+      </div>
+      <div className="main">
+        <div className="hero-row">
+          <div className="card">
+            <div className="card-label">Latest Reading</div>
+            {latest?<>
+              <div className="reading-big"><span style={{color:"var(--red)"}}>{latest.systolic}</span><span className="slash">/</span><span style={{color:"var(--accent2)"}}>{latest.diastolic}</span></div>
+              <span className={`status-badge ${latestStatus.cls}`}>{latestStatus.label}</span>
+              <div style={{fontSize:11,color:"var(--muted)",marginTop:8}}>{fmtDate(latest.recorded_at)}</div>
+            </>:<div style={{color:"var(--muted)"}}>No readings yet</div>}
+          </div>
+          <div className="card">
+            <div className="card-label">30-Day Average</div>
+            {avgSys?<><div className="stat-num">{avgSys}/{avgDia}</div><div className="stat-sub">over {Math.min(readings.length,30)} readings</div></>:<div style={{color:"var(--muted)"}}>—</div>}
+          </div>
+          <div className="card">
+            <div className="card-label">Total Logged</div>
+            <div className="stat-num">{readings.length}</div>
+            <div className="stat-sub">all-time readings</div>
+          </div>
+        </div>
+        <div className="tabs">
+          <div className={`tab ${tab==="chart"?"active":""}`} onClick={()=>setTab("chart")}>Trends</div>
+          <div className={`tab ${tab==="log"?"active":""}`} onClick={()=>setTab("log")}>History</div>
+        </div>
+        {tab==="chart"&&(
+          <div className="chart-card">
+            <div className="chart-header">
+              <div className="chart-title">Blood Pressure Over Time</div>
+              <div className="range-btns">
+                {[7,14,30,90].map(d=><button key={d} className={`range-btn ${range===d?"active":""}`} onClick={()=>setRange(d)}>{d}d</button>)}
+              </div>
+            </div>
+            {loading?<div className="loading pulse">Loading…</div>:chartData.length===0?(
+              <div className="empty"><div className="empty-icon">📊</div><div>No data in this range yet</div></div>
+            ):(
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={chartData} margin={{top:5,right:20,bottom:5,left:0}}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#252836"/>
+                  <XAxis dataKey="date" tick={{fill:"#6b7080",fontSize:11}} axisLine={false} tickLine={false}/>
+                  <YAxis domain={["auto","auto"]} tick={{fill:"#6b7080",fontSize:11}} axisLine={false} tickLine={false}/>
+                  <Tooltip contentStyle={{background:"#13161e",border:"1px solid #252836",borderRadius:8,fontFamily:"DM Mono"}} labelStyle={{color:"#e8eaf0"}} itemStyle={{color:"#e8eaf0"}}/>
+                  <Legend wrapperStyle={{fontFamily:"DM Mono",fontSize:12}}/>
+                  <Line type="monotone" dataKey="Systolic" stroke="#f07a7a" strokeWidth={2} dot={{r:3,fill:"#f07a7a"}} activeDot={{r:5}}/>
+                  <Line type="monotone" dataKey="Diastolic" stroke="#7af0c8" strokeWidth={2} dot={{r:3,fill:"#7af0c8"}} activeDot={{r:5}}/>
+                  <Line type="monotone" dataKey="Pulse" stroke="#c8f07a" strokeWidth={1.5} dot={{r:2,fill:"#c8f07a"}} strokeDasharray="4 2" activeDot={{r:4}}/>
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        )}
+        {tab==="log"&&(
+          <div className="table-card">
+            <div className="table-header">
+              <div className="table-title">Reading History</div>
+              <div className="table-actions">
+                <button className="btn btn-ghost" style={{fontSize:12}} onClick={()=>exportCSV(readings)}>↓ CSV</button>
+                <button className="btn btn-ghost" style={{fontSize:12}} onClick={()=>exportPDF(readings)}>↓ PDF</button>
+              </div>
+            </div>
+            {loading?<div className="loading pulse">Loading…</div>:readings.length===0?(
+              <div className="empty"><div className="empty-icon">🩺</div><div>No readings logged yet</div></div>
+            ):(
+              <table>
+                <thead><tr><th>Date</th><th>Reading</th><th>Pulse</th><th>Status</th><th>Notes</th><th></th></tr></thead>
+                <tbody>
+                  {readings.map(r=>{
+                    const s=bpStatus(r.systolic,r.diastolic);
+                    return(
+                      <tr key={r.id}>
+                        <td style={{color:"var(--muted)",fontSize:12}}>{fmtDate(r.recorded_at)}</td>
+                        <td className="td-reading">{r.systolic}/{r.diastolic}</td>
+                        <td style={{color:"var(--muted)"}}>{r.pulse||"—"}</td>
+                        <td><span className={`status-badge ${s.cls}`}>{s.label}</span></td>
+                        <td className="td-notes">{r.notes||<span style={{color:"var(--border)"}}>—</span>}</td>
+                        <td><button className="del-btn" onClick={()=>del(r.id)} title="Delete">×</button></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+      </div>
+      {showAdd&&<AddModal session={session} onSave={r=>{setReadings(rs=>[r,...rs]);setShowAdd(false);}} onClose={()=>setShowAdd(false)}/>}
+      {showSiri&&<ApiKeyModal session={session} onClose={()=>setShowSiri(false)}/>}
+    </div>
+  );
+}
+
+function App() {
+  const [session,setSession]=useState(()=>{
+    try{const s=localStorage.getItem("bp_session");return s?JSON.parse(s):null;}catch{return null;}
+  });
+  function handleAuth(data){
+    const s={access_token:data.access_token,user:data.user};
+    localStorage.setItem("bp_session",JSON.stringify(s));
+    setSession(s);
+  }
+  function handleSignOut(){
+    if(session) signOut(session.access_token);
+    localStorage.removeItem("bp_session");
+    setSession(null);
+  }
+  if(!session) return <Auth onAuth={handleAuth}/>;
+  return <Dashboard session={session} onSignOut={handleSignOut}/>;
+}
+
+ReactDOM.render(<App/>, document.getElementById("root"));
+</script>
+</body>
+</html>
