@@ -19,7 +19,6 @@
   --accent: #4ade80;
   --red: #ff6b6b;
   --yellow: #ffd166;
-  --blue: #5ce1e6;
   --r: 20px;
   --r2: 28px;
   --shadow: 0 20px 25px -5px rgb(0 0 0 / 0.25);
@@ -32,7 +31,6 @@ html, body {
   color: var(--text);
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 15px;
-  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 button, input, textarea { font-family: inherit; }
@@ -41,7 +39,7 @@ button, input, textarea { font-family: inherit; }
 .screen { display: none; min-height: 100vh; flex-direction: column; }
 .screen.active { display: flex; }
 
-/* AUTH */
+/* AUTH - Clean & Modern */
 #screen-auth {
   align-items: center;
   justify-content: center;
@@ -71,7 +69,6 @@ button, input, textarea { font-family: inherit; }
 .auth-logo-name {
   font-family: 'Instrument Serif', Georgia, serif;
   font-size: 32px;
-  font-weight: 500;
   letter-spacing: -1px;
 }
 
@@ -116,7 +113,6 @@ button, input, textarea { font-family: inherit; }
   transition: all 0.3s ease;
 }
 .field input:focus, .field textarea:focus {
-  outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.15);
 }
@@ -128,15 +124,10 @@ button, input, textarea { font-family: inherit; }
   border: none;
   cursor: pointer;
   transition: all 0.25s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
 }
 .btn-primary {
   background: var(--accent);
   color: #0a0a0c;
-  font-weight: 700;
 }
 .btn-primary:hover {
   transform: translateY(-2px);
@@ -564,7 +555,7 @@ button, input, textarea { font-family: inherit; }
 <div class="toast" id="toast"></div>
 
 <script>
-// ==================== CORE FUNCTIONALITY ====================
+// ==================== CORE API & SESSION ====================
 const SUPABASE_URL = "https://jnopteufsvsqmpwqvagg.supabase.co";
 const SUPABASE_KEY = "sb_publishable_zREjMNJmtTneKAA0GIso_w_6ihAzLID";
 
@@ -618,8 +609,9 @@ function showScreen(id) {
   document.getElementById("screen-" + id).classList.add("active");
 }
 
-// ==================== AUTH ====================
+// ==================== AUTH (Restored original working logic) ====================
 let authMode = "login";
+
 document.getElementById("auth-switch").addEventListener("click", () => {
   authMode = authMode === "login" ? "signup" : "login";
   const isSignup = authMode === "signup";
@@ -639,19 +631,22 @@ document.getElementById("auth-submit").addEventListener("click", async () => {
     msgEl.innerHTML = '<div class="msg-err">Email and password are required</div>';
     return;
   }
+
   btn.disabled = true;
-  btn.textContent = "…";
+  btn.textContent = authMode === "signup" ? "Creating..." : "Signing in...";
+
+  const fail = (msg) => {
+    msgEl.innerHTML = `<div class="msg-err">${msg}</div>`;
+    btn.disabled = false;
+    btn.textContent = authMode === "signup" ? "Create Account" : "Sign In";
+  };
 
   try {
     if (authMode === "signup") {
-      if (pw !== pw2) {
-        msgEl.innerHTML = '<div class="msg-err">Passwords do not match</div>';
-        btn.disabled = false;
-        btn.textContent = "Create Account";
-        return;
-      }
+      if (pw !== pw2) return fail("Passwords do not match");
       const r = await api("/auth/v1/signup", { method: "POST", body: JSON.stringify({ email, password: pw }) });
-      if (!r.ok) throw new Error(r.data?.message || "Signup failed");
+      if (!r.ok) return fail(r.data?.message || r.data?.error_description || "Signup failed");
+      
       msgEl.innerHTML = '<div class="msg-info">Check your email to confirm your account, then sign in.</div>';
       authMode = "login";
       document.getElementById("auth-pw2-wrap").style.display = "none";
@@ -660,14 +655,20 @@ document.getElementById("auth-submit").addEventListener("click", async () => {
       return;
     }
 
-    const r = await api("/auth/v1/token?grant_type=password", { method: "POST", body: JSON.stringify({ email, password: pw }) });
-    if (!r.ok) throw new Error(r.data?.error_description || "Login failed");
+    // LOGIN - This is the exact original working flow
+    const r = await api("/auth/v1/token?grant_type=password", { 
+      method: "POST", 
+      body: JSON.stringify({ email, password: pw }) 
+    });
+
+    if (!r.ok) return fail(r.data?.error_description || r.data?.message || "Invalid email or password");
+
+    if (!r.data?.access_token) return fail("No access token received");
+
     saveSession({ access_token: r.data.access_token, user: r.data.user });
     initDash();
   } catch (e) {
-    msgEl.innerHTML = `<div class="msg-err">${e.message}</div>`;
-    btn.disabled = false;
-    btn.textContent = authMode === "signup" ? "Create Account" : "Sign In";
+    fail("Network error: " + e.message);
   }
 });
 
@@ -763,10 +764,7 @@ function renderChart() {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: { backgroundColor: "#1a1a1f", titleColor: "#f4f4f0", bodyColor: "#a8a8a3", padding: 14, cornerRadius: 12 }
-      },
+      plugins: { legend: { display: false }, tooltip: { backgroundColor: "#1a1a1f", titleColor: "#f4f4f0", bodyColor: "#a8a8a3", padding: 14, cornerRadius: 12 } },
       scales: {
         x: { ticks: { color: "#6b6b66" }, grid: { color: "#2c2c32" } },
         y: { ticks: { color: "#6b6b66" }, grid: { color: "#2c2c32" } }
@@ -813,10 +811,7 @@ function renderList() {
 
 // ==================== ADD READING ====================
 document.getElementById("btn-add").addEventListener("click", () => {
-  document.getElementById("inp-sys").value = "";
-  document.getElementById("inp-dia").value = "";
-  document.getElementById("inp-pulse").value = "";
-  document.getElementById("inp-notes").value = "";
+  ["inp-sys","inp-dia","inp-pulse","inp-notes"].forEach(id => document.getElementById(id).value = "");
   document.getElementById("add-err").innerHTML = "";
   document.getElementById("modal-add").classList.add("open");
   setTimeout(() => document.getElementById("inp-sys").focus(), 100);
@@ -865,17 +860,21 @@ document.getElementById("btn-add-save").addEventListener("click", async () => {
 
 // ==================== SIRI SETUP ====================
 document.getElementById("btn-siri").addEventListener("click", async () => {
-  const modal = document.getElementById("modal-siri");
-  modal.classList.add("open");
+  document.getElementById("modal-siri").classList.add("open");
   document.getElementById("siri-content").innerHTML = `<div style="text-align:center;padding:60px;color:var(--text3)">Generating API key...</div>`;
 
   let key = "";
   try {
     const r = await api("/rest/v1/api_keys?select=key&limit=1", { token: SESSION.access_token });
-    if (r.ok && r.data.length) key = r.data[0].key;
+    if (r.ok && r.data && r.data.length) key = r.data[0].key;
     else {
-      const r2 = await api("/rest/v1/api_keys", { method: "POST", token: SESSION.access_token, headers: { Prefer: "return=representation" }, body: JSON.stringify({ user_id: SESSION.user.id }) });
-      if (r2.ok && r2.data.length) key = r2.data[0].key;
+      const r2 = await api("/rest/v1/api_keys", { 
+        method: "POST", 
+        token: SESSION.access_token, 
+        headers: { Prefer: "return=representation" }, 
+        body: JSON.stringify({ user_id: SESSION.user.id }) 
+      });
+      if (r2.ok && r2.data && r2.data.length) key = r2.data[0].key;
     }
   } catch (e) {
     document.getElementById("siri-content").innerHTML = `<div class="msg-err">Network error. Please try again.</div>`;
@@ -891,9 +890,7 @@ document.getElementById("btn-siri").addEventListener("click", async () => {
       <div style="background:var(--surface2);padding:16px;border-radius:16px;font-family:monospace;word-break:break-all;color:var(--accent);font-size:14px">${key}</div>
     </div>
     <div style="font-size:15px;line-height:1.7;color:var(--text2)">
-      Use this key in the Shortcuts app on iPhone to log readings with Siri.<br><br>
-      <strong>Tip:</strong> Create a shortcut that asks for systolic, diastolic, and notes, then sends a POST request to:<br>
-      <span style="font-family:monospace;color:var(--accent)">${url}</span>
+      Copy this key and use it in the Shortcuts app on iPhone to create a Siri shortcut for logging blood pressure.
     </div>
   `;
 });
@@ -903,12 +900,12 @@ document.getElementById("modal-siri").addEventListener("click", e => { if (e.tar
 
 // ==================== EXPORT ====================
 document.getElementById("btn-csv").addEventListener("click", () => {
-  const rows = [["Date", "Systolic", "Diastolic", "Pulse", "Notes", "Status"]];
+  const rows = [["Date","Systolic","Diastolic","Pulse","Notes","Status"]];
   allReadings.forEach(r => {
     const s = bpStatus(r.systolic, r.diastolic);
     rows.push([fmtDate(r.recorded_at), r.systolic, r.diastolic, r.pulse || "", r.notes || "", s.label]);
   });
-  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
   a.download = "blood-pressure-readings.csv";
